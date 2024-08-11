@@ -1,0 +1,26 @@
+<settings>
+    <setting propertyKey="@Properties.Number" title="@Strings.NumberTitle">
+        <settingConfig type="alphanumeric" required="true" />
+    </setting>
+
+    <setting propertyKey="@Properties.Border" title="@Strings.BorderTitle">
+        <settingConfig type="numeric" min="0" max="10" />
+    </setting>
+    <setting propertyKey="@Properties.Color" title="@Strings.ColorTitle">
+        <settingConfig type="boolean" />
+    </setting>
+    <setting propertyKey="@Properties.Amount" title="@Strings.AmountTitle">
+        <settingConfig type="numeric" />
+    </setting>
+    <setting propertyKey="@Properties.AmountEditable" title="@Strings.AmountEditableTitle">
+        <settingConfig type="boolean" />
+    </setting>
+
+    <setting propertyKey="@Properties.Message" title="@Strings.MessageTitle">
+        <settingConfig type="alphanumeric" />
+    </setting>
+    <setting propertyKey="@Properties.MessageEditable" title="@Strings.MessageEditableTitle">
+        <settingConfig type="boolean" />
+    </setting>
+</settings>
+

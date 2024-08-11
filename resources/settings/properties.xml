@@ -1,0 +1,9 @@
+<properties>
+	<property id="Number" type="string"></property>
+	<property id="Border" type="number">1</property>
+	<property id="Color" type="boolean">true</property>
+	<property id="Amount" type="number">0</property>
+	<property id="AmountEditable" type="boolean">true</property>
+	<property id="Message" type="string">Swish via Garmin QR</property>
+	<property id="MessageEditable" type="boolean">true</property>
+</properties>
