@@ -1,13 +1,76 @@
-import Toybox.Graphics;
-import Toybox.WatchUi;
+import Toybox.Application;
+import Toybox.Application.Storage;
+import Toybox.Application.Properties;
 import Toybox.Lang;
+import Toybox.WatchUi;
+import Toybox.Communications;
+import Toybox.Graphics;
 
 class swishQRView extends WatchUi.View {
     var _image as WatchUi.BitmapResource?;
     var _number as String?;
 
     function initialize() {
+        var number = Properties.getValue("Number") as String;
+        var image = Storage.getValue("qrCode") as WatchUi.BitmapResource?;
+
+        if (image != null && number != "") {
+            System.println("Using cached image");
+            updateQR(number, image);
+        } else {
+            System.println("Downloading image");
+            fetchImage();
+        }
+
         View.initialize();
+    }
+
+    function fetchImage() as Void {
+        var options = {
+            :maxWidth => 240,
+            :maxHeight => 240,
+            :dithering => Communications.IMAGE_DITHERING_NONE,
+        };
+
+        if (_number == "") {
+            System.println("No settings, update to change");
+            return;
+        }
+
+        var params = {
+            "border" => Properties.getValue("Border") as Number,
+            "color" => Properties.getValue("Color") as Boolean,
+            "amount" => Properties.getValue("Amount") as Number,
+            "amount_editable" => Properties.getValue("AmountEditable") as
+            Boolean,
+            "message" => Properties.getValue("Message") as String,
+            "message_editable" => Properties.getValue("MessageEditable") as
+            Boolean,
+        };
+
+        Communications.makeImageRequest(
+            Lang.format("https://swish-proxy-uybifb3biq-lz.a.run.app/$1$", [
+                _number,
+            ]),
+            params,
+            options,
+            method(:onRequestComplete)
+        );
+    }
+
+    function onRequestComplete(
+        responseCode as Number,
+        data as WatchUi.BitmapResource or Graphics.BitmapReference or Null
+    ) as Void {
+        if (responseCode == 200) {
+            // Cast form reference to resource so we can persist it.
+            var c = data as WatchUi.BitmapResource;
+            Storage.setValue("qrCode", c);
+
+            updateQR(_number as String, c);
+        } else {
+            System.println(responseCode);
+        }
     }
 
     function updateQR(
@@ -28,6 +91,12 @@ class swishQRView extends WatchUi.View {
         _image = image;
 
         WatchUi.requestUpdate();
+    }
+
+    function onSettingsChanged() as Void {
+        _number = Properties.getValue("Number") as String;
+
+        fetchImage();
     }
 
     // Load your resources here
