@@ -9,7 +9,7 @@ class swishQRApp extends Application.AppBase {
     private var _sw as swishQRView;
 
     function initialize() {
-        _sw = new swishQRView();
+        _sw = new swishQRView(new swishQR());
 
         AppBase.initialize();
     }

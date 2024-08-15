@@ -2,12 +2,6 @@ import Toybox.WatchUi;
 import Toybox.Lang;
 
 class swishQRGlance extends WatchUi.GlanceView {
-    enum {
-        Foo,
-        Bar,
-        Baz,
-    }
-
     function initialize() {
         GlanceView.initialize();
     }
@@ -22,14 +16,9 @@ class swishQRGlance extends WatchUi.GlanceView {
         GlanceView.onUpdate(dc);
 
         var height = dc.getHeight();
-
         var font = Graphics.FONT_MEDIUM;
         var text = "Swish QR";
-
-        var textDimensions = dc.getTextDimensions(text, font);
-        var textHeight = textDimensions[1];
-
-        Foo.format("%d");
+        var textHeight = Graphics.getFontHeight(font);
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(
