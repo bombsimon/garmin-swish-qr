@@ -7,48 +7,85 @@ import Toybox.Graphics;
 import Toybox.WatchUi;
 
 const BASE_URL = "https://swish-proxy-uybifb3biq-lz.a.run.app";
+
+// Keys for storage.
 const APP_STORAGE_QR_CODE = "qrCode";
-const APP_STORAGE_NUMBER = "Number";
+const APP_STORAGE_SETTINGS_HASH = "SettingsHash";
+
+// Keys for settings.
+const APP_SETTINGS_NUMBER = "Number";
+const APP_SETTINGS_BORDER = "Border";
+const APP_SETTINGS_COLOR = "Color";
+const APP_SETTINGS_AMOUNT = "Amount";
+const APP_SETTINGS_AMOUNT_E = "AmountEditable";
+const APP_SETTINGS_MESSAGE = "Message";
+const APP_SETTINGS_MESSAGE_E = "MessageEditable";
 
 class swishQR {
-    var _isInitialStart as Boolean = true;
-    var _image as WatchUi.BitmapResource? =
+    // To see if the user changed any settings while not running the app, we
+    // store the hash of all settings. On startup we compare them and if they're
+    // not the same we try to update the image.
+    private var _settingsHash as Number = 0;
+    private var _shouldRequestUpdateOnStart as Boolean = false;
+
+    // We keep our image, our number from the settings and a formatted version
+    // of the image at all times, only updating them when changes to settings
+    // are detected.
+    //
+    // Storing images requires API version 3.0.0:
+    // https://developer.garmin.com/connect-iq/api-docs/Toybox/Application/Storage.html#setValue-instance_function
+    private var _image as WatchUi.BitmapResource? =
         Storage.getValue(APP_STORAGE_QR_CODE) as WatchUi.BitmapResource?;
-    var _number as String? = Properties.getValue(APP_STORAGE_NUMBER) as String?;
-    var _errorMessage as String?;
+    private var _numberInSettings as String? =
+        Properties.getValue(APP_SETTINGS_NUMBER) as String?;
+    private var _formattedNumber as String = "";
+
+    // If the `_errorMessage` is set, that text will be rendered instead of the
+    // QR code. Used to render information about invalid settings or after a web
+    // request failed.
+    private var _errorMessage as String?;
 
     function initialize() {
+        var settingsHash = Storage.getValue(APP_STORAGE_SETTINGS_HASH);
+        if (settingsHash != null) {
+            _settingsHash = settingsHash as Number;
+        }
+
+        var currentSettingsHash = allSettingsHash();
+        if (_settingsHash != currentSettingsHash) {
+            _shouldRequestUpdateOnStart = true;
+            Storage.setValue(APP_STORAGE_SETTINGS_HASH, currentSettingsHash);
+        }
+
         if (isReady()) {
-            if (validateNumber(_number as String)) {
+            if (validateNumber(_numberInSettings as String)) {
                 formatNumber();
             }
         }
     }
 
-    private function isReady() as Boolean {
-        return _image != null && _number != null;
+    private function allSettingsHash() as Number {
+        return Lang.format("$1$:$2$:$3$:$4$:$5$:$6$:$7$", [
+            Properties.getValue(APP_SETTINGS_NUMBER) as String?,
+            Properties.getValue(APP_SETTINGS_BORDER) as Number,
+            Properties.getValue(APP_SETTINGS_COLOR) as Boolean,
+            Properties.getValue(APP_SETTINGS_AMOUNT) as Number,
+            Properties.getValue(APP_SETTINGS_AMOUNT_E) as Boolean,
+            Properties.getValue(APP_SETTINGS_MESSAGE) as String,
+            Properties.getValue(APP_SETTINGS_MESSAGE_E) as Boolean,
+        ]).hashCode();
     }
 
-    function update(screenSize as Number) as Void {
-        // Reset error message on all updates to clear state.
-        _errorMessage = null;
+    private function settingsChanged() as Boolean {
+        return !_settingsHash.equals(allSettingsHash());
+    }
 
-        // We only try to fetch image if we have a valid number.
-        _number = Properties.getValue(APP_STORAGE_NUMBER) as String?;
-        if (_number == null || _number.equals("")) {
-            return;
-        }
-
-        if (!validateNumber(_number as String)) {
-            return;
-        }
-
-        fetchImage(screenSize, _number as String);
-        formatNumber();
+    private function isReady() as Boolean {
+        return _image != null && _numberInSettings != null;
     }
 
     private function validateNumber(number as String) as Boolean {
-        var numberAsString = _number as String;
+        var numberAsString = number as String;
         var numberAsNumber = numberAsString.toNumber();
         var numberLength =
             numberAsNumber == null
@@ -71,27 +108,67 @@ class swishQR {
         return true;
     }
 
+    private function formatNumber() as Void {
+        if (_numberInSettings == null) {
+            return;
+        }
+
+        var number = _numberInSettings as String;
+        var leading = number.substring(0, 3);
+        var chunk1 = number.substring(3, 5);
+        var chunk2 = number.substring(5, 7);
+        var chunk3 = number.substring(7, 10);
+
+        _formattedNumber = Lang.format("$1$-$2$ $3$ $4$", [
+            leading,
+            chunk1,
+            chunk2,
+            chunk3,
+        ]);
+    }
+
+    function update(screenSize as Number) as Void {
+        if (!settingsChanged()) {
+            return;
+        }
+
+        // Reset error message on all updates to clear state.
+        _errorMessage = null;
+
+        // We only try to fetch image if we have a valid number.
+        _numberInSettings = Properties.getValue(APP_SETTINGS_NUMBER) as String?;
+        if (_numberInSettings == null || _numberInSettings.equals("")) {
+            return;
+        }
+
+        if (!validateNumber(_numberInSettings as String)) {
+            return;
+        }
+
+        fetchImage(screenSize, _numberInSettings as String);
+        formatNumber();
+
+        // Update to our new settings.
+        var newSettingsHash = allSettingsHash();
+        _settingsHash = newSettingsHash;
+        Storage.setValue(APP_STORAGE_SETTINGS_HASH, newSettingsHash);
+    }
+
     function draw(dc as Graphics.Dc) as Void {
         if (_errorMessage != null) {
             drawMessage(dc, _errorMessage as String);
             return;
         }
 
-        if (!isReady()) {
-            drawMessage(dc, "Setup in Connect IQ app");
-
-            // If it's the first initial start and we're not ready, ensure we
-            // check for settings and if the user configured the app non staretd
-            // or in glance viwe, try to update the image.
-            if (_isInitialStart) {
-                _isInitialStart = false;
-                update(dc.getWidth());
-            }
-
-            return;
+        if (_shouldRequestUpdateOnStart) {
+            update(dc.getWidth());
+            _shouldRequestUpdateOnStart = false;
         }
 
-        _isInitialStart = false;
+        if (!isReady()) {
+            drawMessage(dc, "Setup in Connect IQ app");
+            return;
+        }
 
         var w = dc.getWidth();
         var h = dc.getHeight();
@@ -114,7 +191,7 @@ class swishQR {
             w / 2,
             h / 2 + imgH / 2,
             Graphics.FONT_XTINY,
-            _number,
+            _formattedNumber,
             Graphics.TEXT_JUSTIFY_CENTER
         );
 
@@ -144,30 +221,11 @@ class swishQR {
         );
     }
 
-    private function formatNumber() as Void {
-        if (_number == null) {
-            return;
-        }
-
-        var number = _number as String;
-        var leading = number.substring(0, 3);
-        var chunk1 = number.substring(3, 5);
-        var chunk2 = number.substring(5, 7);
-        var chunk3 = number.substring(7, 10);
-
-        _number = Lang.format("$1$-$2$ $3$ $4$", [
-            leading,
-            chunk1,
-            chunk2,
-            chunk3,
-        ]);
-    }
-
     private function fetchImage(
         screenSize as Number,
         number as String
     ) as Void {
-        // System.println("Making request");
+        System.println("Making request");
 
         // Compute how big of an image can fit a round screen.
         var size = (screenSize / Math.sqrt(2)).toNumber();
@@ -179,13 +237,13 @@ class swishQR {
         };
 
         var params = {
-            "border" => Properties.getValue("Border") as Number,
-            "color" => Properties.getValue("Color") as Boolean,
-            "amount" => Properties.getValue("Amount") as Number,
-            "amount_editable" => Properties.getValue("AmountEditable") as
+            "border" => Properties.getValue(APP_SETTINGS_BORDER) as Number,
+            "color" => Properties.getValue(APP_SETTINGS_COLOR) as Boolean,
+            "amount" => Properties.getValue(APP_SETTINGS_AMOUNT) as Number,
+            "amount_editable" => Properties.getValue(APP_SETTINGS_AMOUNT_E) as
             Boolean,
-            "message" => Properties.getValue("Message") as String,
-            "message_editable" => Properties.getValue("MessageEditable") as
+            "message" => Properties.getValue(APP_SETTINGS_MESSAGE) as String,
+            "message_editable" => Properties.getValue(APP_SETTINGS_MESSAGE_E) as
             Boolean,
             "size" => size,
         };
@@ -208,14 +266,9 @@ class swishQR {
 
             WatchUi.requestUpdate();
         } else {
-            System.println(
-                Lang.format("Failed to fetch image: $1$ ($2$)", [
-                    data,
-                    responseCode,
-                ])
-            );
             _errorMessage =
-                "Failed to generate QR code. Control your settings and try again.";
+                "Failed to generate QR code. Control your settings and try again. Status " +
+                responseCode;
         }
     }
 }

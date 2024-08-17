@@ -33,6 +33,7 @@ class swishQRApp extends Application.AppBase {
         return [_sq];
     }
 
+    // Requires API 3.1.0
     (:glance)
     function getGlanceView() {
         return [new swishQRGlance()];
