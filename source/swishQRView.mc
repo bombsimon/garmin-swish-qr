@@ -29,27 +29,7 @@ class swishQRView extends WatchUi.View {
 
     // Update the view
     function onUpdate(dc as Dc) as Void {
-        // Call the parent onUpdate function to redraw the layout
-        View.onUpdate(dc);
-
-        var w = dc.getWidth();
-        var h = dc.getHeight();
-
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
-        dc.fillRectangle(0, 0, w, h);
-
-        if (_swishQR.isReady()) {
-            _swishQR.draw(dc);
-        } else {
-            dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
-            dc.drawText(
-                w / 2,
-                h / 2,
-                Graphics.FONT_XTINY,
-                "Setup in Connect IQ app",
-                Graphics.TEXT_JUSTIFY_CENTER
-            );
-        }
+        _swishQR.draw(dc);
     }
 
     // Called when this View is removed from the screen. Save the

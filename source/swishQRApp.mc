@@ -5,21 +5,20 @@ import Toybox.WatchUi;
 import Toybox.Communications;
 import Toybox.Graphics;
 
+// Enabling typechecker makes it not possible to propagate the settings changes
+// to the view since it's not available when running in Glance mode.
+(:typecheck(false))
 class swishQRApp extends Application.AppBase {
-    private var _sw as swishQRView;
+    private var _sq as swishQRView?;
 
     function initialize() {
-        _sw = new swishQRView(new swishQR());
-
         AppBase.initialize();
     }
 
     function onSettingsChanged() {
-        _sw.onSettingsChanged();
-    }
-
-    function getGlanceView() {
-        return [new swishQRGlance()];
+        if (_sq != null) {
+            _sq.onSettingsChanged();
+        }
     }
 
     // onStart() is called on application start up
@@ -30,7 +29,13 @@ class swishQRApp extends Application.AppBase {
 
     // Return the initial view of your application here
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [_sw];
+        _sq = new swishQRView(new swishQR());
+        return [_sq];
+    }
+
+    (:glance)
+    function getGlanceView() {
+        return [new swishQRGlance()];
     }
 }
 

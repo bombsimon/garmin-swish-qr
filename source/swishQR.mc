@@ -6,36 +6,92 @@ import Toybox.Communications;
 import Toybox.Graphics;
 import Toybox.WatchUi;
 
+const BASE_URL = "https://swish-proxy-uybifb3biq-lz.a.run.app";
+const APP_STORAGE_QR_CODE = "qrCode";
+const APP_STORAGE_NUMBER = "Number";
+
 class swishQR {
+    var _isInitialStart as Boolean = true;
     var _image as WatchUi.BitmapResource? =
-        Storage.getValue("qrCode") as WatchUi.BitmapResource?;
-    var _number as String? = Properties.getValue("Number") as String?;
+        Storage.getValue(APP_STORAGE_QR_CODE) as WatchUi.BitmapResource?;
+    var _number as String? = Properties.getValue(APP_STORAGE_NUMBER) as String?;
+    var _errorMessage as String?;
 
     function initialize() {
         if (isReady()) {
-            formatNumber();
-            System.println("Using cached image");
+            if (validateNumber(_number as String)) {
+                formatNumber();
+            }
         }
     }
 
-    function isReady() as Boolean {
+    private function isReady() as Boolean {
         return _image != null && _number != null;
     }
 
     function update(screenSize as Number) as Void {
-        _number = Properties.getValue("Number") as String?;
-        if (_number == null || _number == "") {
+        // Reset error message on all updates to clear state.
+        _errorMessage = null;
+
+        // We only try to fetch image if we have a valid number.
+        _number = Properties.getValue(APP_STORAGE_NUMBER) as String?;
+        if (_number == null || _number.equals("")) {
             return;
         }
 
-        fetchImage(screenSize);
+        if (!validateNumber(_number as String)) {
+            return;
+        }
+
+        fetchImage(screenSize, _number as String);
         formatNumber();
     }
 
+    private function validateNumber(number as String) as Boolean {
+        var numberAsString = _number as String;
+        var numberAsNumber = numberAsString.toNumber();
+        var numberLength =
+            numberAsNumber == null
+                ? 0
+                : (numberAsNumber as Number).toString().length();
+
+        if (
+            numberAsString.length() != 10 ||
+            numberAsNumber == null ||
+            numberLength != 9
+        ) {
+            _errorMessage =
+                "Number must be 10 digits, e.g. '0701234567'. Please update your settings in the Connect IQ app";
+
+            WatchUi.requestUpdate();
+
+            return false;
+        }
+
+        return true;
+    }
+
     function draw(dc as Graphics.Dc) as Void {
-        if (!isReady()) {
+        if (_errorMessage != null) {
+            drawMessage(dc, _errorMessage as String);
             return;
         }
+
+        if (!isReady()) {
+            drawMessage(dc, "Setup in Connect IQ app");
+
+            // If it's the first initial start and we're not ready, ensure we
+            // check for settings and if the user configured the app non staretd
+            // or in glance viwe, try to update the image.
+            if (_isInitialStart) {
+                _isInitialStart = false;
+                update(dc.getWidth());
+            }
+
+            return;
+        }
+
+        _isInitialStart = false;
 
         var w = dc.getWidth();
         var h = dc.getHeight();
@@ -46,6 +102,9 @@ class swishQR {
         var x = w / 2 - imgW / 2;
         var y = h / 2 - imgH / 2;
         var f = Graphics.getFontHeight(Graphics.FONT_XTINY);
+
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_WHITE);
+        dc.fillRectangle(0, 0, w, h);
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         dc.fillRectangle(x - 5, y - 5, imgW + 10, imgH + 10 + f);
@@ -60,6 +119,29 @@ class swishQR {
         );
 
         dc.drawBitmap(x, y, i);
+    }
+
+    private function drawMessage(dc as Graphics.Dc, message as String) as Void {
+        var w = dc.getWidth();
+        var h = dc.getHeight();
+
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        dc.fillRectangle(0, 0, w, h);
+
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
+        dc.drawText(
+            w / 2,
+            h / 2,
+            Graphics.FONT_XTINY,
+            Graphics.fitTextToArea(
+                message,
+                Graphics.FONT_XTINY,
+                w - 20,
+                h,
+                true
+            ),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        );
     }
 
     private function formatNumber() as Void {
@@ -81,7 +163,12 @@ class swishQR {
         ]);
     }
 
-    private function fetchImage(screenSize as Number) as Void {
+    private function fetchImage(
+        screenSize as Number,
+        number as String
+    ) as Void {
+        // System.println("Making request");
+
         // Compute how big of an image can fit a round screen.
         var size = (screenSize / Math.sqrt(2)).toNumber();
 
@@ -90,11 +177,6 @@ class swishQR {
             :maxHeight => size,
             :dithering => Communications.IMAGE_DITHERING_NONE,
         };
-
-        var number = Properties.getValue("Number") as String?;
-        if (number == null || number == "") {
-            return;
-        }
 
         var params = {
             "border" => Properties.getValue("Border") as Number,
@@ -109,9 +191,7 @@ class swishQR {
         };
 
         Communications.makeImageRequest(
-            Lang.format("https://swish-proxy-uybifb3biq-lz.a.run.app/$1$", [
-                number,
-            ]),
+            Lang.format(BASE_URL + "/$1$", [number]),
             params,
             options,
             method(:onRequestComplete)
@@ -123,11 +203,8 @@ class swishQR {
         data as WatchUi.BitmapResource or Graphics.BitmapReference or Null
     ) as Void {
         if (responseCode == 200) {
-            // Cast form reference to resource so we can persist it.
-            var c = data as WatchUi.BitmapResource;
-            Storage.setValue("qrCode", c);
-
-            _image = c;
+            _image = data as WatchUi.BitmapResource;
+            Storage.setValue(APP_STORAGE_QR_CODE, _image);
 
             WatchUi.requestUpdate();
         } else {
@@ -137,6 +214,8 @@ class swishQR {
                     responseCode,
                 ])
             );
+            _errorMessage =
+                "Failed to generate QR code. Control your settings and try again.";
         }
     }
 }

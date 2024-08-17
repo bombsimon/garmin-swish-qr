@@ -2,7 +2,6 @@
     <setting propertyKey="@Properties.Number" title="@Strings.NumberTitle">
         <settingConfig type="alphanumeric" required="true" />
     </setting>
-
     <setting propertyKey="@Properties.Border" title="@Strings.BorderTitle">
         <settingConfig type="numeric" min="0" max="10" />
     </setting>
