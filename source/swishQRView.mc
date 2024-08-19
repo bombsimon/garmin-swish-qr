@@ -310,7 +310,7 @@ class swishQRView extends WatchUi.View {
         };
 
         Communications.makeImageRequest(
-            Lang.format(BASE_URL + "/$1$", [number]),
+            Lang.format("$1$/$2$", [BASE_URL, number]),
             params,
             options,
             method(:onRequestComplete)
