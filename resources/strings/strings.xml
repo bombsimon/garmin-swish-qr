@@ -1,11 +1,11 @@
 <strings>
-    <string id="AppName">Swish QR</string>
+    <string id="AppName" translatable="false" scope="glance">Swish QR</string>
 
-    <string id="NumberTitle">Your Swish number (digits only)</string>
-    <string id="BorderTitle">Border thickness</string>
-    <string id="ColorTitle">Use color for logo</string>
-    <string id="AmountTitle">Pre-filled amount</string>
-    <string id="AmountEditableTitle">Amount can be edited</string>
-    <string id="MessageTitle">Pre-filled message</string>
-    <string id="MessageEditableTitle">Message can be edited</string>
+    <string id="NumberTitle" translatable="false">Your Swish number (digits only)</string>
+    <string id="BorderTitle" translatable="false">Border thickness</string>
+    <string id="ColorTitle" translatable="false">Use color for logo</string>
+    <string id="AmountTitle" translatable="false">Pre-filled amount</string>
+    <string id="AmountEditableTitle" translatable="false">Amount can be edited</string>
+    <string id="MessageTitle" translatable="false">Pre-filled message</string>
+    <string id="MessageEditableTitle" translatable="false">Message can be edited</string>
 </strings>

@@ -29,7 +29,7 @@ class swishQRApp extends Application.AppBase {
 
     // Return the initial view of your application here
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        _sq = new swishQRView(new swishQR());
+        _sq = new swishQRView();
         return [_sq];
     }
 
